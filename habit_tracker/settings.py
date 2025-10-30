@@ -145,5 +145,23 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# Swagger Settings
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': 'Введите: Bearer <ваш_JWT_токен>'
+        }
+    },
+    'USE_SESSION_AUTH': False,  # Отключаем сессионную аутентификацию
+}
+
+# Redoc Settings
+REDOC_SETTINGS = {
+    'SPEC_URL': ('schema-json', {'format': '.json'}),
+}
+
 # Telegram Settings
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')

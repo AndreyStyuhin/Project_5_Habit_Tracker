@@ -8,40 +8,30 @@ class HabitValidator:
     Применяется в сериализаторе.
     """
 
-    def __init__(self, fields):
-        self.fields = fields
+    def __init__(self, instance=None):
+        self.instance = instance
 
     def __call__(self, data):
-        # Объединяем 'data' (новые данные) и 'self.fields' (существующие данные при partial_update)
-        # При создании (POST) self.fields будет пустым
-        # При обновлении (PUT/PATCH) self.fields будет содержать instance
-
-        # Если это обновление, data может быть неполной.
-        # Нам нужно получить полные данные для валидации.
-        if hasattr(self, 'instance') and self.instance:
-            # Обновляем данные 'instance' данными из 'data'
+        # Объединяем данные для валидации
+        full_data = {}
+        if self.instance:
+            # При обновлении - берем существующие значения и обновляем новыми данными
             full_data = {
-                'related_habit': data.get('related_habit', self.instance.related_habit),
-                'reward': data.get('reward', self.instance.reward),
-                'duration': data.get('duration', self.instance.duration),
-                'is_pleasant': data.get('is_pleasant', self.instance.is_pleasant),
-                'periodicity': data.get('periodicity', self.instance.periodicity),
+                'related_habit': self.instance.related_habit,
+                'reward': self.instance.reward,
+                'duration': self.instance.duration,
+                'is_pleasant': self.instance.is_pleasant,
+                'periodicity': self.instance.periodicity,
             }
-        else:
-            # Это создание (POST)
-            full_data = data
 
-        related_habit_id = full_data.get('related_habit')
-        related_habit = None
-        if related_habit_id:
-            # related_habit_id может быть объектом Habit или ID
-            related_habit = related_habit_id if isinstance(related_habit_id, Habit) else Habit.objects.get(
-                pk=related_habit_id.pk)
+        # Обновляем full_data данными из запроса
+        full_data.update(data)
 
+        related_habit = full_data.get('related_habit')
         reward = full_data.get('reward')
         duration = full_data.get('duration')
-        is_pleasant = full_data.get('is_pleasant')
-        periodicity = full_data.get('periodicity')
+        is_pleasant = full_data.get('is_pleasant', False)
+        periodicity = full_data.get('periodicity', 1)
 
         # 1. Исключить одновременный выбор связанной привычки и вознаграждения
         if related_habit and reward:
