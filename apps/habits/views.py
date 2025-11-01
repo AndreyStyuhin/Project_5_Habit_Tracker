@@ -1,11 +1,11 @@
 from rest_framework import viewsets, generics, status
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .models import Habit
-from .serializers import HabitSerializer
-from .permissions import IsOwner
-from .paginators import StandardPagination
+from apps.habits.models import Habit
+from apps.habits.serializers import HabitSerializer
+from apps.habits.permissions import IsOwner
+from apps.habits.paginators import StandardPagination
 
 
 class HabitViewSet(viewsets.ModelViewSet):
@@ -40,9 +40,7 @@ class HabitViewSet(viewsets.ModelViewSet):
         # Логируем создание привычки
         print(f"🆕 Создание привычки пользователем: {request.user.email}")
 
-        # Копируем данные запроса и добавляем информацию о пользователе
-        data = request.data.copy()
-
+        
         # Вызываем родительский метод
         response = super().create(request, *args, **kwargs)
 

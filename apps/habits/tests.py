@@ -3,7 +3,6 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from apps.users.models import User
 from .models import Habit
-from django.utils import timezone
 
 
 class HabitApiTests(APITestCase):
