@@ -40,7 +40,6 @@ class HabitViewSet(viewsets.ModelViewSet):
         # Логируем создание привычки
         print(f"🆕 Создание привычки пользователем: {request.user.email}")
 
-        
         # Вызываем родительский метод
         response = super().create(request, *args, **kwargs)
 
@@ -104,5 +103,3 @@ class PublicHabitListAPIView(generics.ListAPIView):
         }
 
         return response
-
-

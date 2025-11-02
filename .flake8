@@ -7,4 +7,5 @@ exclude =
     __pycache__,
     */migrations/*,
     venv/,
-    env/
+    env/,
+    .venv/

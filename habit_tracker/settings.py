@@ -174,3 +174,5 @@ REDOC_SETTINGS = {
 
 # Telegram Settings
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+
+CELERY_BROKER_URL = 'redis://redis:6379/0'

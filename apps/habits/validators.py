@@ -1,7 +1,6 @@
 from rest_framework.serializers import ValidationError
 
 
-
 class HabitValidator:
     """
     Набор валидаторов для модели Привычки.
