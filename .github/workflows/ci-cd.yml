@@ -3,7 +3,7 @@ name: CI/CD Pipeline (Lint, Test, Build, Deploy)
 on:
   push:
     branches:
-      - Course_9_The_final_task  # Деплой при пуше
+      - Course_9_The_final_task_Dell  # Деплой при пуше
   pull_request:
     branches:
       - develop # Проверки при PR в develop
