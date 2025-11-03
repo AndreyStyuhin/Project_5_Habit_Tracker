@@ -86,7 +86,7 @@ jobs:
 
       - name: 3. Check Docker Compose build
         run: |
-          cp .env.example .env && docker compose build app
+          cp .env.example .env && docker compose -f docker-compose.yml build app
 
   # --- 3. Деплой на Сервер ---
   deploy:
