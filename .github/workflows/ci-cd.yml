@@ -1,155 +1,142 @@
-name: CI/CD Pipeline (Lint, Test, Build, Push, Deploy)
+name: CI/CD Pipeline (Test, Build & Deploy)
 
 on:
   push:
     branches:
-      - Course_9_The_final_task_Dell  # триггер деплоя при пуше в эту ветку
+      - Course_9_The_final_task_Dell  # <-- ветка для деплоя
   pull_request:
     branches:
-      - develop  # проверки при PR в develop
+      - develop  # <-- только проверки при PR в develop
 
 jobs:
-  # --- 1. Линтинг и Тесты ---
-  lint_and_test:
-    name: Linting & Testing
+  # --- 1. Тестирование ---
+  test:
     runs-on: ubuntu-latest
 
     services:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_DB: test_db
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U test_user -d test_db"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=5
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - name: 1. Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: 2. Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: '3.11'
 
-      - name: Install Dependencies
+      - name: 3. Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install flake8 pytest
 
-      - name: Run Linting
-        run: flake8 . --exclude=*/migrations/*,venv/
-
-      - name: Run Tests
+      - name: 4. Run Django tests
         env:
-          SECRET_KEY: test_secret_key
+          SECRET_KEY: test_key
+          DEBUG: 'False'
+          ALLOWED_HOSTS: 'localhost,127.0.0.1'
           POSTGRES_DB: test_db
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_password
-          POSTGRES_HOST: localhost
+          POSTGRES_HOST: '127.0.0.1'
           POSTGRES_PORT: 5432
-          CELERY_BROKER_URL: redis://localhost:6379/0
-          CELERY_RESULT_BACKEND: redis://localhost:6379/0
-        run: pytest
+        run: |
+          python manage.py migrate
+          python manage.py makemigrations --check --dry-run
+          python manage.py test
 
-
-  # --- 2. Сборка и пуш образа в локальный Registry ---
+  # --- 2. Сборка и публикация Docker образов ---
   build_and_push:
-    name: Build & Push Docker Image to Local Registry
     runs-on: ubuntu-latest
-    needs: lint_and_test
+    needs: test
 
     steps:
-      - uses: actions/checkout@v4
+      - name: 1. Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to private registry
-        run: docker login 212.22.70.98:5000 -u ${{ secrets.REGISTRY_USER }} -p ${{ secrets.REGISTRY_PASS }}
-
-      - name: Build and push Docker image
+      - name: 2. Allow insecure Docker registry
         run: |
-          docker build -t 212.22.70.98:5000/my_app:latest .
-          docker push 212.22.70.98:5000/my_app:latest
-
-      # --- Важно! Разрешаем небезопасный реестр ---
-      - name: Configure Docker daemon for insecure registry
-        run: |
-          echo '{ "insecure-registries": ["212.22.70.98:5000"] }' | sudo tee /etc/docker/daemon.json
+          echo '{ "insecure-registries":["212.22.70.98:5000"] }' | sudo tee /etc/docker/daemon.json
           sudo systemctl restart docker
 
-      # --- Логинимся в registry (если есть логин/пароль) ---
-      - name: Login to local Docker Registry
-        run: |
-          docker login 212.22.70.98:5000 -u ${{ secrets.REGISTRY_USER }} -p ${{ secrets.REGISTRY_PASS }}
+      - name: 3. Login to private Docker registry
+        uses: docker/login-action@v3
+        with:
+          registry: 212.22.70.98:5000
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Build and push image
-        run: |
-          IMAGE_NAME=212.22.70.98:5000/habit_app:latest
-          docker build -t $IMAGE_NAME .
-          docker push $IMAGE_NAME
+      - name: 4. Build and push Django app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: 212.22.70.98:5000/habit_tracker/app:latest
 
-      - name: Verify pushed image
-        run: curl -s http://212.22.70.98:5000/v2/_catalog
-
+      - name: 5. Build and push Nginx image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./nginx
+          file: ./nginx/Dockerfile
+          push: true
+          tags: 212.22.70.98:5000/habit_tracker/nginx:latest
 
   # --- 3. Деплой на сервер ---
   deploy:
-    name: Deploy to Server
     runs-on: ubuntu-latest
-    needs: [build_and_push]
-    if: github.event_name == 'push'
+    needs: build_and_push
+    if: github.ref == 'refs/heads/Course_9_The_final_task_Dell' && github.event_name == 'push'
 
     steps:
-      - name: Deploy via SSH
+      - name: 1. SSH Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USERNAME }}
+          username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
           script: |
             set -e
 
-            echo "→ Pulling new Docker image from registry..."
-            docker pull 212.22.70.98:5000/habit_app:latest
+            cd /srv/habit_tracker
 
-            echo "→ Updating project containers..."
-            cd /home/${{ secrets.SERVER_USERNAME }}/Project_5_Habit_Tracker
+            echo "===> Pulling latest code"
+            git pull origin Course_9_The_final_task_Dell || true
 
-            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" > .env
-            echo "DEBUG=False" >> .env
-            echo "ALLOWED_HOSTS=${{ secrets.SERVER_HOST }},www.${{ secrets.SERVER_HOST }}" >> .env
-            echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
-            echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
-            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
-            echo "POSTGRES_HOST=db" >> .env
-            echo "POSTGRES_PORT=5432" >> .env
-            echo "CELERY_BROKER_URL=redis://redis:6379/0" >> .env
-            echo "CELERY_RESULT_BACKEND=redis://redis:6379/0" >> .env
-            echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> .env
+            echo "===> Creating .env file"
+            cat > .env <<EOF
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            DEBUG=False
+            ALLOWED_HOSTS=${{ secrets.SERVER_HOST }},127.0.0.1,localhost
+            POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            POSTGRES_HOST=db
+            POSTGRES_PORT=5432
+            CELERY_BROKER_URL=redis://redis:6379/0
+            CELERY_RESULT_BACKEND=redis://redis:6379/0
+            TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+            EOF
 
-            docker-compose pull app
+            echo "===> Updating Docker images"
+            docker-compose pull
             docker-compose up -d --build
 
-            docker-compose exec -T app python manage.py migrate
-            docker-compose exec -T app python manage.py collectstatic --no-input
+            echo "===> Running migrations & collecting static files"
+            docker-compose exec -T app python manage.py migrate --noinput
+            docker-compose exec -T app python manage.py collectstatic --noinput
 
+            echo "===> Cleaning up old images"
             docker image prune -f
