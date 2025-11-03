@@ -87,7 +87,6 @@ jobs:
       - name: 3. Check Docker Compose build
         run: |
           cp .env.example .env && docker compose -f docker-compose.yml build app
-        working-directory: ./Project_5_Habit_Tracker
 
       - name: Debug — show current path
         run: |
