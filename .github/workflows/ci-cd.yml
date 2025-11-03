@@ -85,7 +85,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: 3. Check Docker Compose build
-        working-directory: ./Project_5_Habit_Tracker
         run: |
           cp .env.example .env && docker compose -f docker-compose.yml build app
 
@@ -124,7 +123,7 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           script: |
             # Переходим в директорию проекта на сервере
-            cd /путь/к/вашему/проекту/Project_5_Habit_Tracker
+            cd /Project_5_Habit_Tracker
             
             # Получаем последние изменения из репозитория
             git pull origin main
