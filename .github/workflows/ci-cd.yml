@@ -85,11 +85,11 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: 3. Check Docker Compose build
-        run: |
-          # Создаем .env для сборки, он не будет использоваться,
-          # но docker-compose build может его требовать
-          cp .env.example .env
-          docker-compose build app
+        run:
+            # Создаем .env для сборки, он не будет использоваться,
+            # но docker-compose build может его требовать
+            cp .env.example .env
+            docker compose build app # <-- ИСПРАВЛЕНИЕ: docker compose
 
   # --- 3. Деплой на Сервер ---
   deploy:
