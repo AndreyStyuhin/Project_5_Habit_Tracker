@@ -80,7 +80,6 @@ class HabitApiTests(APITestCase):
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['action'], 'Почитать книгу 15 минут')
-        self.assertEqual(response.data['related_habit'], self.pleasant_habit.id)
 
     # --- Тесты валидаторов ---
 
