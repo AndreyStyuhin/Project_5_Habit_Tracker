@@ -8,19 +8,18 @@ from apps.habits.models import Habit
 class HabitApiTests(APITestCase):
 
     def setUp(self):
-        # Создаем двух пользователей
+        # Создаем двух пользователей с УНИКАЛЬНЫМИ username
         self.user1 = User.objects.create_user(
-            username='test_user1',
+            username='user1_unique',  # <-- Изменено
             email='user1@example.com',
             password='password123',
             telegram_id='12345'
         )
         self.user2 = User.objects.create_user(
-            username='test_user1',
+            username='user2_unique',  # <-- Изменено
             email='user2@example.com',
             password='password123'
         )
-
         # Аутентифицируем user1
         self.client.login(email='user1@example.com', password='password123')
         # Для APITestCase с JWT, вам нужно получить токен и установить его в заголовок
