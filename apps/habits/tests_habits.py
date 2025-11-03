@@ -10,11 +10,13 @@ class HabitApiTests(APITestCase):
     def setUp(self):
         # Создаем двух пользователей
         self.user1 = User.objects.create_user(
+            username='test_user1',
             email='user1@example.com',
             password='password123',
             telegram_id='12345'
         )
         self.user2 = User.objects.create_user(
+            username='test_user1',
             email='user2@example.com',
             password='password123'
         )
