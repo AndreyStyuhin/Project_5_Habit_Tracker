@@ -195,3 +195,14 @@ class HabitApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.pleasant_habit.refresh_from_db()
         self.assertEqual(self.pleasant_habit.place, "Ванная комната")
+
+    def test_unauthorized_user_cannot_access_habits(self):
+        """Тест: Неаутентифицированный пользователь получает 401 при доступе к списку."""
+        # Отменяем аутентификацию, установленную в setUp
+        self.client.force_authenticate(user=None)
+
+        url = reverse('habits:habit-list')
+        response = self.client.get(url)
+
+        # Ожидаем 401 Unauthorized
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
