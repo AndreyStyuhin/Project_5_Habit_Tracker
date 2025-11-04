@@ -141,12 +141,12 @@ jobs:
             EOF
 
             echo "===> Updating Docker images"
-            docker-compose pull
-            docker-compose up -d --build
+            docker compose pull
+            docker compose up -d --build
 
             echo "===> Running migrations & collecting static files"
-            docker-compose exec -T app python manage.py migrate --noinput
-            docker-compose exec -T app python manage.py collectstatic --noinput
+            docker compose exec -T app python manage.py migrate --noinput
+            docker compose exec -T app python manage.py collectstatic --noinput
 
             echo "===> Cleaning up old images"
             docker image prune -f
