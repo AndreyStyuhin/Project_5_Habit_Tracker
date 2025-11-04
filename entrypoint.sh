@@ -13,7 +13,9 @@ done
 
 echo "PostgreSQL доступен!"
 
+# Выполняем миграции и собираем статику
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
-exec "$@"
+# Запускаем Gunicorn
+exec gunicorn habit_tracker.wsgi:application --bind 0.0.0.0:8000
