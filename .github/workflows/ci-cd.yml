@@ -3,10 +3,10 @@ name: CI/CD Pipeline (Test, Build & Deploy)
 on:
   push:
     branches:
-      - Course_9_The_final_task_Dell  # <-- ветка для деплоя
+      - Course_9_The_final_task_Dell  # <-- деплой при пуше в эту ветку
   pull_request:
     branches:
-      - develop  # <-- только проверки при PR в develop
+      - develop  # <-- только тесты при PR в develop
 
 jobs:
   # --- 1. Тестирование ---
@@ -57,6 +57,7 @@ jobs:
           python manage.py makemigrations --check --dry-run
           python manage.py test
 
+
   # --- 2. Сборка и публикация Docker образов ---
   build_and_push:
     runs-on: ubuntu-latest
@@ -78,7 +79,15 @@ jobs:
           username: ${{ secrets.REGISTRY_USER }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: 4. Build and push Django app image
+      - name: 4. Check Dockerfile presence
+        run: |
+          if [ ! -f ./Dockerfile ]; then
+            echo "❌ Main Dockerfile not found in project root!"
+            exit 1
+          fi
+          echo "✅ Main Dockerfile found."
+
+      - name: 5. Build and push Django app image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -86,13 +95,15 @@ jobs:
           push: true
           tags: 212.22.70.98:5000/habit_tracker/app:latest
 
-      - name: 5. Build and push Nginx image
+      - name: 6. Optionally build and push Nginx image
+        if: ${{ hashFiles('./nginx/Dockerfile') != '' }}
         uses: docker/build-push-action@v6
         with:
           context: ./nginx
           file: ./nginx/Dockerfile
           push: true
           tags: 212.22.70.98:5000/habit_tracker/nginx:latest
+
 
   # --- 3. Деплой на сервер ---
   deploy:
@@ -109,7 +120,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-
             cd /srv/habit_tracker
 
             echo "===> Pulling latest code"
