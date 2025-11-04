@@ -6,6 +6,7 @@ from apps.habits.models import Habit
 from apps.habits.serializers import HabitSerializer
 from apps.habits.permissions import IsOwner
 from apps.habits.paginators import StandardPagination
+from django.shortcuts import render
 
 
 class HabitViewSet(viewsets.ModelViewSet):
@@ -103,3 +104,6 @@ class PublicHabitListAPIView(generics.ListAPIView):
         }
 
         return response
+
+def index(request):
+    return render(request, 'habits/index.html')

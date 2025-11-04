@@ -35,6 +35,7 @@ services:
     networks:
       - habit_net
 
+
   nginx:
     image: 212.22.70.98:5000/habit_tracker/nginx:latest
     container_name: habit_nginx

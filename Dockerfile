@@ -2,16 +2,16 @@
 FROM python:3.11-slim-bullseye
 
 # Установка системных переменных
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Установка системных зависимостей
 # build-essential и libpq-dev нужны для psycopg2 (PostgreSQL)
 RUN apt-get update \
-    && apt-get install -y build-essential libpq-dev \
-    # Очистка
+    && apt-get install -y build-essential libpq-dev netcat-openbsd \
     && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Установка зависимостей Python
 # Сначала копируем только requirements.txt для кэширования этого слоя

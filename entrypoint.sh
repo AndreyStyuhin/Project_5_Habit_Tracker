@@ -1,17 +1,19 @@
-#!/bin/sh
+#!/bin/bash
+set -e
 
-# Ожидание доступности PostgreSQL
+: "${POSTGRES_HOST:?POSTGRES_HOST is not set}"
+: "${POSTGRES_PORT:?POSTGRES_PORT is not set}"
+
 echo "Ожидание PostgreSQL..."
-while ! nc -z $POSTGRES_HOST $POSTGRES_PORT; do
-  sleep 0.1
+
+while ! timeout 1 bash -c "</dev/tcp/$POSTGRES_HOST/$POSTGRES_PORT"; do
+  echo "PostgreSQL не готов, ждем 1 секунду..."
+  sleep 1
 done
-echo "PostgreSQL запущен"
 
-# Применение миграций
-python manage.py migrate
+echo "PostgreSQL доступен!"
 
-# Сбор статических файлов
-python manage.py collectstatic --no-input
+python manage.py migrate --noinput
+python manage.py collectstatic --noinput
 
-# Запуск команды, переданной в CMD Dockerfile (или docker-compose)
 exec "$@"
