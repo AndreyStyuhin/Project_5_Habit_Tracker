@@ -142,7 +142,10 @@ jobs:
 
             echo "===> Updating Docker images"
             docker compose pull
-            docker compose up -d --build
+
+            # ИСПРАВЛЕНО: Заменен '--build' на '--force-recreate'
+            echo "===> Restarting services"
+            docker compose up -d --force-recreate
 
             echo "===> Running migrations & collecting static files"
             docker compose exec -T app python manage.py migrate --noinput

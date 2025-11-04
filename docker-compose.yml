@@ -19,7 +19,8 @@ services:
       - habit_net
 
   app:
-    image: 212.22.70.98:5000/habit_tracker/app:latest
+    # ИСПРАВЛЕНО: Заменено 'image:' на 'build:' для локальной сборки
+    build: .
     container_name: habit_app
     restart: always
     env_file: .env
@@ -30,14 +31,15 @@ services:
       - static_volume:/app/static
     expose:
       - "8000"
+    # ИСПРАВЛЕНО: 'config.wsgi' -> 'habit_tracker.wsgi'
     command: >
-      sh -c "gunicorn config.wsgi:application --bind 0.0.0.0:8000"
+      sh -c "gunicorn habit_tracker.wsgi:application --bind 0.0.0.0:8000"
     networks:
       - habit_net
 
-
   nginx:
-    image: 212.22.70.98:5000/habit_tracker/nginx:latest
+    # ИСПРАВЛЕНО: Заменено 'image:' на 'build:'
+    build: ./nginx
     container_name: habit_nginx
     restart: always
     depends_on:
@@ -46,6 +48,36 @@ services:
       - "80:80"
     volumes:
       - static_volume:/static
+    networks:
+      - habit_net
+
+  # ДОБАВЛЕНО: Сервис Celery Worker
+  celery:
+    build: .
+    container_name: habit_celery
+    restart: always
+    env_file: .env
+    command: >
+      sh -c "celery -A habit_tracker worker -l info"
+    depends_on:
+      - app
+      - redis
+      - db
+    networks:
+      - habit_net
+
+  # ДОБАВЛЕНО: Сервис Celery Beat (Планировщик)
+  celery-beat:
+    build: .
+    container_name: habit_beat
+    restart: always
+    env_file: .env
+    command: >
+      sh -c "celery -A habit_tracker beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+    depends_on:
+      - app
+      - redis
+      - db
     networks:
       - habit_net
 
