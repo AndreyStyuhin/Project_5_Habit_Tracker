@@ -177,20 +177,29 @@ jobs:
             docker image prune -f
             
             echo "===> Verifying deployment (attempt 1)..."
-            # Увеличим задержку до 20 секунд для надежности
-            sleep 20
+            # Увеличим задержку до 25 секунд на всякий случай
+            sleep 25
             
+            # КОМАНДЫ ДЛЯ ВЕРИФИКАЦИИ
             VERIFICATION_COMMAND="docker compose exec -T nginx sh -c \"apk add --no-cache curl >/dev/null 2>&1 || true && curl -s -o /dev/null -w %{http_code} http://localhost | grep -q '200'\""
-            # Упрощенная команда CURL для диагностики
             DIAGNOSTIC_COMMAND="docker compose exec -T nginx sh -c \"apk add --no-cache curl >/dev/null 2>&1 || true && curl -s -w 'HTTP CODE: %{http_code}\n' http://localhost\""
             
+            # Временно отключить set -e, чтобы Bash не прерывался при неудаче 'eval'
+            set +e
             if eval "$VERIFICATION_COMMAND"; then
+            
             echo '✅ Deployment verified successfully'
             else
+            # Это выполнится, если верификация не удалась
             echo '❌ Deployment verification failed!'
             echo '--- Diagnostic output from Nginx container ---'
-            eval "$DIAGNOSTIC_COMMAND" # Выводим HTTP CODE
+            # Выводим фактический код, который дал curl
+            eval "$DIAGNOSTIC_COMMAND"
             echo '--- App Container Logs (last 50 lines) ---'
+            # Выводим логи приложения для анализа
             docker compose logs app -n 50
+            # Возвращаем ненулевой статус после диагностики
             exit 1
             fi
+            # Включить set -e обратно (хотя здесь он уже не нужен)
+            set -e
