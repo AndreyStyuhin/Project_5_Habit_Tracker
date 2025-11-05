@@ -181,12 +181,11 @@ jobs:
             # Увеличиваем задержку до 30 секунд для максимальной надежности
             sleep 30
             # КОМАНДА ДЛЯ ПОЛУЧЕНИЯ HTTP-КОДА
-            # Выводим HTTP-код в STDOUT, отбрасывая все остальное
             GET_CODE_COMMAND="docker compose exec -T nginx sh -c 'apk add --no-cache curl >/dev/null 2>&1 || true && curl -s -o /dev/null -w %{http_code} http://localhost'"
             
-            # Выполняем команду и сохраняем результат
-            set +e # Отключаем set -e для безопасного выполнения
-            HTTP_CODE=$(eval "$GET_CODE_COMMAND")
+            # Выполняем команду, сохраняем результат, и принудительно игнорируем ошибку (|| true)
+            set +e # Отключаем set -e
+            HTTP_CODE=$(eval "$GET_CODE_COMMAND" 2>/dev/null || true)
             set -e # Включаем set -e обратно
             
             # Проверка результата
