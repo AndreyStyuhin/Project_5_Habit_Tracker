@@ -144,12 +144,16 @@ jobs:
 
             echo "===> Running migrations in isolated container"
             docker compose run --rm app python manage.py migrate --noinput
-
-            echo "===> Collecting static files safely"
-            docker compose run --rm app sh -c "
+            echo "===> Collecting static files safely (with permission fix)"
+            docker compose run --rm --user root app sh -c "
+            echo 'Cleaning old static files...' &&
+            rm -rf /app/static/* &&
             mkdir -p /app/static &&
             chown -R 1000:1000 /app/static &&
+            su -s /bin/sh -c 'python manage.py collectstatic --noinput --clear --verbosity 0' appuser || \
+            su -s /bin/sh -c 'python manage.py collectstatic --noinput --clear --verbosity 0' www-data || \
             python manage.py collectstatic --noinput --clear --verbosity 0"
+
 
 
             echo "===> Restarting all services"
