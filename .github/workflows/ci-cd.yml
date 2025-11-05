@@ -146,7 +146,11 @@ jobs:
             docker compose run --rm app python manage.py migrate --noinput
 
             echo "===> Collecting static files safely"
-            docker compose run --rm app python manage.py collectstatic --noinput --clear --verbosity 0
+            docker compose run --rm app sh -c "
+            mkdir -p /app/static &&
+            chown -R 1000:1000 /app/static &&
+            python manage.py collectstatic --noinput --clear --verbosity 0"
+
 
             echo "===> Restarting all services"
             docker compose up -d app nginx celery celery-beat
