@@ -135,6 +135,17 @@ jobs:
             TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
             EOF
             
+            # Удаляет все остановленные контейнеры
+            docker container prune -f
+            
+            # Удаляет все неиспользуемые образы
+            docker image prune -a -f
+            
+            # Удаляет все неиспользуемые volume
+            docker volume prune -f
+            # Удаляет все неиспользуемые сети
+            docker network prune -f
+            
             echo "===> Pulling latest Docker images"
             docker compose pull
             
@@ -146,15 +157,13 @@ jobs:
             docker compose run --rm app python manage.py migrate --noinput
             
             echo "===> Preparing static files safely"
-            # 1. Удаляем старые статические файлы и создаем папку под root
-            docker compose run --rm --user root app sh -c "
-            rm -rf /app/static/*
-            mkdir -p /app/static"
+            # Удаляем старую статику полностью
+            docker compose run --rm --user root app sh -c "rm -rf /app/static && mkdir -p /app/static"
             
-            # 2. Сборка статики под root
+            # Собираем статику под root
             docker compose run --rm --user root app python manage.py collectstatic --noinput --clear --verbosity 0
             
-            # 3. Выставляем права для пользователя приложения
+            # Выставляем права на папку для обычного пользователя приложения (uid=1000)
             docker compose run --rm --user root app sh -c "chown -R 1000:1000 /app/static && chmod -R 755 /app/static"
             
             echo "===> Restarting all services"
