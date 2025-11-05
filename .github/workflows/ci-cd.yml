@@ -147,10 +147,17 @@ jobs:
             
             echo "===> Collecting static files safely (with permission fix)"
             docker compose run --rm --user root app sh -c "
+
+            echo 'Fixing permissions for /app/static...' &&
+            chown -R root:root /app/static || true &&
+            chmod -R 777 /app/static || true &&
+
             echo 'Cleaning old static files...' &&
             rm -rf /app/static/* &&
             mkdir -p /app/static &&
             python manage.py collectstatic --noinput --clear --verbosity 0 &&
+
+            echo 'Resetting ownership for app user...' &&
             chown -R 1000:1000 /app/static"
 
             echo "===> Restarting all services"
