@@ -109,7 +109,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script_stop: true
           timeout: 30m
-          command_timeout: 20m
+          command_timeout: 25m
           script: |
             set -e
             cd /srv/habit_tracker
@@ -138,23 +138,18 @@ jobs:
             echo "===> Pulling latest Docker images"
             docker compose pull
 
-            echo "===> Starting core containers (db, redis, app, nginx)"
-            docker compose up -d db redis app nginx
+            echo "===> Starting only DB and Redis first"
+            docker compose up -d db redis
             sleep 10
 
-            echo "===> Waiting for PostgreSQL..."
-            until docker compose exec -T db pg_isready -U ${{ secrets.POSTGRES_USER }} > /dev/null 2>&1; do
-              sleep 2
-            done
+            echo "===> Running migrations in isolated container"
+            docker compose run --rm app python manage.py migrate --noinput
 
-            echo "===> Applying migrations"
-            docker compose exec -T app python manage.py migrate --noinput
+            echo "===> Collecting static files safely"
+            docker compose run --rm app python manage.py collectstatic --noinput --clear --verbosity 0
 
-            echo "===> Collecting static files"
-            docker compose exec -T app python manage.py collectstatic --noinput
-
-            echo "===> Starting Celery workers"
-            docker compose up -d celery celery-beat
+            echo "===> Restarting all services"
+            docker compose up -d app nginx celery celery-beat
 
             echo "===> Cleaning unused Docker images"
             docker image prune -f
@@ -169,3 +164,4 @@ jobs:
               docker compose logs app -n 50
               exit 1
             fi
+
