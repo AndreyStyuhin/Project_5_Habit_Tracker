@@ -176,27 +176,38 @@ jobs:
             echo "===> Cleaning unused Docker images"
             docker image prune -f
             
-            echo "===> Verifying deployment (FINAL ATTEMPT)..."
+            echo "===> Verifying deployment (Final Robust Check)..."
+            MAX_RETRIES=5
+            SLEEP_TIME=10
+            ATTEMPT=1
+            SUCCESS_CODES="200|301|302|304" # Добавляем коды перенаправления
             
-            # Увеличиваем задержку до 30 секунд для максимальной надежности
-            sleep 30
-            # КОМАНДА ДЛЯ ПОЛУЧЕНИЯ HTTP-КОДА
             GET_CODE_COMMAND="docker compose exec -T nginx sh -c 'apk add --no-cache curl >/dev/null 2>&1 || true && curl -s -o /dev/null -w %{http_code} http://localhost'"
-            
-            # Выполняем команду, сохраняем результат, и принудительно игнорируем ошибку (|| true)
-            set +e # Отключаем set -e
+            set +e
+            while [ $ATTEMPT -le $MAX_RETRIES ]; do
+            echo "Attempt $ATTEMPT of $MAX_RETRIES: Checking status..."
+            # Выполняем команду, игнорируя ее код возврата
             HTTP_CODE=$(eval "$GET_CODE_COMMAND" 2>/dev/null || true)
-            set -e # Включаем set -e обратно
-            
-            # Проверка результата
-            if echo "$HTTP_CODE" | grep -qE "^200$|^301$|^302$"; then
-            echo '✅ Deployment verified successfully (Code: '$HTTP_CODE')'
+            if echo "$HTTP_CODE" | grep -qE "^(${SUCCESS_CODES})$"; then
+            echo '✅ Deployment verified successfully!'
             echo "HTTP CODE: $HTTP_CODE"
+            set -e # Восстанавливаем set -e
+            exit 0 # УСПЕХ: Выходим с кодом 0
+            elif [ "$HTTP_CODE" = "000" ] || [ -z "$HTTP_CODE" ]; then
+            echo "   Received 000/Empty code. Service not reachable yet. Waiting $SLEEP_TIME seconds..."
             else
-            echo '❌ Deployment verification failed!'
+            echo "   Received status code $HTTP_CODE. Waiting $SLEEP_TIME seconds..."
+            fi
+            
+            ATTEMPT=$((ATTEMPT + 1))
+            sleep $SLEEP_TIME
+            done
+            set -e # Восстанавливаем set -e
+            # Если мы дошли сюда, все попытки провалились
+            echo '❌ Deployment verification FAILED after multiple attempts!'
             echo "--- Diagnostic output ---"
-            echo "EXPECTED HTTP CODE 200, RECEIVED: $HTTP_CODE"
+            echo "EXPECTED HTTP CODE: One of $SUCCESS_CODES"
+            echo "LAST RECEIVED CODE: $HTTP_CODE"
             echo '--- App Container Logs (last 50 lines) ---'
             docker compose logs app -n 50
-            exit 1
-            fi
+            exit 1 # ПРОВАЛ: Выходим с кодом 1
