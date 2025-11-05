@@ -134,7 +134,7 @@ jobs:
             CELERY_RESULT_BACKEND=redis://redis:6379/0
             TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
             EOF
-
+            
             echo "===> Pulling latest Docker images"
             docker compose pull
             
@@ -149,12 +149,13 @@ jobs:
             # 1. Удаляем старые статические файлы и создаем папку под root
             docker compose run --rm --user root app sh -c "
             rm -rf /app/static/*
-            mkdir -p /app/static
-            chown -R 1000:1000 /app/static
-            chmod -R 777 /app/static"
+            mkdir -p /app/static"
             
-            # 2. Сбор статических файлов под пользователем приложения
-            docker compose run --rm --user 1000:1000 app python manage.py collectstatic --noinput --clear --verbosity 0
+            # 2. Сборка статики под root
+            docker compose run --rm --user root app python manage.py collectstatic --noinput --clear --verbosity 0
+            
+            # 3. Выставляем права для пользователя приложения
+            docker compose run --rm --user root app sh -c "chown -R 1000:1000 /app/static && chmod -R 755 /app/static"
             
             echo "===> Restarting all services"
             docker compose up -d app nginx celery celery-beat
