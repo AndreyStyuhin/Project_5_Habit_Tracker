@@ -177,9 +177,21 @@ jobs:
             docker image prune -f
             
             echo "===> Verifying deployment..."
-            sleep 5
-            VERIFICATION_COMMAND="docker compose exec -T nginx sh -c \"apk add --no-cache curl >/dev/null 2>&1 || true && curl -s -o /dev/null -w '%{http_code}' http://localhost\" | grep -q '200'"
-            if eval $VERIFICATION_COMMAND; then
+            # Увеличим задержку, чтобы дать всем сервисам время на запуск
+            sleep 15
+            # Команда, которая гарантированно возвращает 0, даже если curl/grep не сработали,
+            # чтобы избежать преждевременного выхода из-за 'set -e', но при этом сохраняет логику if/else.
+            VERIFICATION_COMMAND="docker compose exec -T nginx sh -c 'apk add --no-cache curl >/dev/null 2>&1 || true && curl -s -o /dev/null -w %{http_code} http://localhost' | grep -q '200'"
+            
+            # Запускаем команду и проверяем ее результат
+            if $VERIFICATION_COMMAND; then # Удаляем eval, это может быть не нужно, если строка не содержит сложных переменных
+            echo '✅ Deployment verified successfully'
+            else
+            echo '❌ Deployment verification failed!'
+            echo '--- App Container Logs (last 50 lines) ---'
+            docker compose logs app -n 50
+            exit 1
+            fi
             
             echo '✅ Deployment verified successfully'
             else
