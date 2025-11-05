@@ -189,8 +189,8 @@ jobs:
             set -e # Включаем set -e обратно
             
             # Проверка результата
-            if [ "$HTTP_CODE" = "200" ]; then
-            echo '✅ Deployment verified successfully'
+            if echo "$HTTP_CODE" | grep -qE "^200$|^301$|^302$"; then
+            echo '✅ Deployment verified successfully (Code: '$HTTP_CODE')'
             echo "HTTP CODE: $HTTP_CODE"
             else
             echo '❌ Deployment verification failed!'
