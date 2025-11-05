@@ -6,6 +6,7 @@ services:
     env_file: .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
     networks:
       - habit_net
     deploy:
@@ -34,6 +35,7 @@ services:
       - redis
     volumes:
       - static_volume:/app/static
+      - media_volume:/app/media   # Монтирование тома медиа
     expose:
       - "8000"
     command: >
@@ -55,6 +57,8 @@ services:
       - "80:80"
     volumes:
       - static_volume:/static
+      - static_volume:/app/static # Монтирование тома статики
+      - media_volume:/app/media   # Монтирование тома медиа
     networks:
       - habit_net
     deploy:
@@ -100,7 +104,9 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
   static_volume:
+  media_volume:
 
 networks:
   habit_net:
