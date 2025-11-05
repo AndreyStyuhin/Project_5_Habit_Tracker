@@ -153,6 +153,14 @@ jobs:
             docker compose up -d db redis
             sleep 10
             
+            # <<< ADD THIS BLOCK HERE TO ENSURE CORRECT PERMISSIONS BEFORE MIGRATE >>>
+            echo "===> Ensuring correct permissions on static/ media directories"
+            # Run chown BEFORE migrate to ensure the non-root 'app' user can operate
+            docker compose run --rm --user root app sh -c "chown -R 1000:1000 /app/static /app/media || true && chmod -R 755 /app/static /app/media || true"
+            
+            echo "===> Running migrations in isolated container"
+            docker compose run --rm app python manage.py migrate --noinput
+            
             echo "===> Running migrations in isolated container"
             docker compose run --rm app python manage.py migrate --noinput
             
