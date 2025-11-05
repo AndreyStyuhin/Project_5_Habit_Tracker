@@ -1,4 +1,107 @@
-      - name: Deploy to server
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - Course_9_The_final_task_Dell
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  test:
+    name: Run Django Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run migrations and tests
+        env:
+          SECRET_KEY: test_key
+          DEBUG: 'False'
+          ALLOWED_HOSTS: 'localhost,127.0.0.1'
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
+        run: |
+          python manage.py migrate
+          python manage.py makemigrations --check --dry-run
+          python manage.py test
+
+  build_and_push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Allow insecure Docker registry
+        run: |
+          echo '{ "insecure-registries":["212.22.70.98:5000"] }' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+
+      - name: Login to private Docker registry
+        uses: docker/login-action@v3
+        with:
+          registry: 212.22.70.98:5000
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push Django app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: 212.22.70.98:5000/habit_tracker/app:latest
+
+      - name: Build and push Nginx image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./nginx
+          file: ./nginx/Dockerfile
+          push: true
+          tags: 212.22.70.98:5000/habit_tracker/nginx:latest
+
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: build_and_push
+    if: github.ref == 'refs/heads/Course_9_The_final_task_Dell' && github.event_name == 'push'
+
+    steps:
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -35,7 +138,7 @@
             echo "===> Pulling latest Docker images"
             docker compose pull
 
-            echo "===> Starting only core containers (db, redis, app, nginx)"
+            echo "===> Starting core containers (db, redis, app, nginx)"
             docker compose up -d db redis app nginx
             sleep 10
 
@@ -44,22 +147,16 @@
               sleep 2
             done
 
-            echo "===> Running migrations"
-            docker compose exec -T app python manage.py migrate --noinput || {
-              echo "⚠️ Migrate failed - retrying with swap check"
-              sudo swapon --show
-              docker compose restart db
-              sleep 10
-              docker compose exec -T app python manage.py migrate --noinput
-            }
+            echo "===> Applying migrations"
+            docker compose exec -T app python manage.py migrate --noinput
 
             echo "===> Collecting static files"
             docker compose exec -T app python manage.py collectstatic --noinput
 
-            echo "===> Now starting Celery services"
+            echo "===> Starting Celery workers"
             docker compose up -d celery celery-beat
 
-            echo "===> Cleaning up old Docker images"
+            echo "===> Cleaning unused Docker images"
             docker image prune -f
 
             echo "===> Verifying deployment..."
