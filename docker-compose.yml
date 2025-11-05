@@ -1,4 +1,3 @@
-version: "3.9"
 
 services:
   db:
@@ -20,7 +19,7 @@ services:
 
   app:
     # ИСПРАВЛЕНО: Заменено 'image:' на 'build:' для локальной сборки
-    build: .
+    image: 212.22.70.98:5000/habit_tracker/app:latest
     container_name: habit_app
     restart: always
     env_file: .env
@@ -39,7 +38,7 @@ services:
 
   nginx:
     # ИСПРАВЛЕНО: Заменено 'image:' на 'build:'
-    build: ./nginx
+    image: 212.22.70.98:5000/habit_tracker/nginx:latest
     container_name: habit_nginx
     restart: always
     depends_on:
@@ -53,7 +52,7 @@ services:
 
   # ДОБАВЛЕНО: Сервис Celery Worker
   celery:
-    build: .
+    image: 212.22.70.98:5000/habit_tracker/app:latest
     container_name: habit_celery
     restart: always
     env_file: .env
@@ -65,10 +64,12 @@ services:
       - db
     networks:
       - habit_net
+    environment:
+      - SKIP_MIGRATE=true
 
   # ДОБАВЛЕНО: Сервис Celery Beat (Планировщик)
   celery-beat:
-    build: .
+    image: 212.22.70.98:5000/habit_tracker/app:latest
     container_name: habit_beat
     restart: always
     env_file: .env
@@ -80,6 +81,8 @@ services:
       - db
     networks:
       - habit_net
+    environment:
+      - SKIP_MIGRATE=true
 
 volumes:
   postgres_data:

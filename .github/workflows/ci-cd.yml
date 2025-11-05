@@ -129,7 +129,7 @@ jobs:
             echo "===> Creating .env file"
             echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" > .env
             echo "DEBUG=False" >> .env
-            echo "ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }},127.0.0.1,localhost,212.22.70.98" >> .env
+            echo "ALLOWED_HOSTS=127.0.0.1,localhost,212.22.70.98" >> .env
             echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
             echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
             echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
@@ -144,6 +144,7 @@ jobs:
 
             echo "===> Restarting containers"
             docker compose up -d --force-recreate
+            sleep 10
 
             echo "===> Waiting for PostgreSQL..."
             until docker compose exec -T db pg_isready -U ${{ secrets.POSTGRES_USER }} > /dev/null 2>&1; do

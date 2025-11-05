@@ -25,6 +25,8 @@ COPY ./entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 # Копирование всего проекта
+RUN adduser -D appuser
+USER appuser
 COPY . .
 
 # Указание, что Gunicorn будет слушать этот порт

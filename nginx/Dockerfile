@@ -5,7 +5,7 @@ FROM nginx:1.27-alpine
 RUN rm /etc/nginx/conf.d/default.conf
 
 # Копируем нашу кастомную конфигурацию Nginx
-COPY nginx.conf /etc/nginx/conf.d
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Копируем статические файлы (если нужно)
 # Обычно их копирует Django при collectstatic
