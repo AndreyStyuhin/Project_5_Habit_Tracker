@@ -161,8 +161,8 @@ jobs:
             docker compose run --rm app python manage.py migrate --noinput
                                  
             echo "===> Preparing static files safely"
-            # Удаляем только содержимое старой статики, чтобы избежать ошибки "Device or resource busy"
-            docker compose run --rm --user root app sh -c "rm -rf /app/static/* /app/static/.* && mkdir -p /app/static"
+            # Использовать find для безопасного удаления ВСЕГО содержимого, исключая точки монтирования
+            docker compose run --rm --user root app find /app/static -mindepth 1 -delete
             
             # Собираем статику под root
             docker compose run --rm --user root app python manage.py collectstatic --noinput --clear --verbosity 0
