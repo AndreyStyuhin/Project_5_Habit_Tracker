@@ -35,6 +35,10 @@ services:
       sh -c "gunicorn habit_tracker.wsgi:application --bind 0.0.0.0:8000"
     networks:
       - habit_net
+    deploy:
+      resources:
+        limits:
+          memory: 2g
 
   nginx:
     # ИСПРАВЛЕНО: Заменено 'image:' на 'build:'
