@@ -176,18 +176,20 @@ jobs:
             echo "===> Cleaning unused Docker images"
             docker image prune -f
             
-            echo "===> Verifying deployment..."
-            # Увеличим задержку, чтобы дать всем сервисам время на запуск
-            sleep 15
+            echo "===> Verifying deployment (attempt 1)..."
+            # Увеличим задержку до 20 секунд для надежности
+            sleep 20
             
-            # КОМАНДА ИСПРАВЛЕНА: Использование 'eval' для корректной обработки вложенных кавычек
             VERIFICATION_COMMAND="docker compose exec -T nginx sh -c \"apk add --no-cache curl >/dev/null 2>&1 || true && curl -s -o /dev/null -w %{http_code} http://localhost | grep -q '200'\""
+            # Упрощенная команда CURL для диагностики
+            DIAGNOSTIC_COMMAND="docker compose exec -T nginx sh -c \"apk add --no-cache curl >/dev/null 2>&1 || true && curl -s -w 'HTTP CODE: %{http_code}\n' http://localhost\""
             
-            # Запускаем команду с eval для корректного выполнения сложной строки
             if eval "$VERIFICATION_COMMAND"; then
             echo '✅ Deployment verified successfully'
             else
             echo '❌ Deployment verification failed!'
+            echo '--- Diagnostic output from Nginx container ---'
+            eval "$DIAGNOSTIC_COMMAND" # Выводим HTTP CODE
             echo '--- App Container Logs (last 50 lines) ---'
             docker compose logs app -n 50
             exit 1
