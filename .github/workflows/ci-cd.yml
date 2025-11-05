@@ -159,7 +159,7 @@ jobs:
             
             echo "===> Running migrations in isolated container"
             docker compose run --rm app python manage.py migrate --noinput
-                                 
+            
             echo "===> Preparing static files safely"
             # Использовать find для безопасного удаления ВСЕГО содержимого, исключая точки монтирования
             docker compose run --rm --user root app find /app/static -mindepth 1 -delete
@@ -179,23 +179,16 @@ jobs:
             echo "===> Verifying deployment..."
             # Увеличим задержку, чтобы дать всем сервисам время на запуск
             sleep 15
-            # Команда, которая гарантированно возвращает 0, даже если curl/grep не сработали,
-            # чтобы избежать преждевременного выхода из-за 'set -e', но при этом сохраняет логику if/else.
-            VERIFICATION_COMMAND="docker compose exec -T nginx sh -c 'apk add --no-cache curl >/dev/null 2>&1 || true && curl -s -o /dev/null -w %{http_code} http://localhost' | grep -q '200'"
             
-            # Запускаем команду и проверяем ее результат
-            if $VERIFICATION_COMMAND; then # Удаляем eval, это может быть не нужно, если строка не содержит сложных переменных
+            # КОМАНДА ИСПРАВЛЕНА: Использование 'eval' для корректной обработки вложенных кавычек
+            VERIFICATION_COMMAND="docker compose exec -T nginx sh -c \"apk add --no-cache curl >/dev/null 2>&1 || true && curl -s -o /dev/null -w %{http_code} http://localhost | grep -q '200'\""
+            
+            # Запускаем команду с eval для корректного выполнения сложной строки
+            if eval "$VERIFICATION_COMMAND"; then
             echo '✅ Deployment verified successfully'
             else
             echo '❌ Deployment verification failed!'
             echo '--- App Container Logs (last 50 lines) ---'
-            docker compose logs app -n 50
-            exit 1
-            fi
-            
-            echo '✅ Deployment verified successfully'
-            else
-            echo '❌ Deployment verification failed!'
             docker compose logs app -n 50
             exit 1
             fi
