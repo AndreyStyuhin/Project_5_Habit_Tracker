@@ -137,43 +137,39 @@ jobs:
 
             echo "===> Pulling latest Docker images"
             docker compose pull
-
+            
             echo "===> Starting only DB and Redis first"
             docker compose up -d db redis
             sleep 10
-
+            
             echo "===> Running migrations in isolated container"
             docker compose run --rm app python manage.py migrate --noinput
             
-            echo "===> Collecting static files safely (with permission fix)"
+            echo "===> Preparing static files safely"
+            # 1. Удаляем старые статические файлы и создаем папку под root
             docker compose run --rm --user root app sh -c "
-
-            echo 'Fixing permissions for /app/static...' &&
-            chown -R root:root /app/static || true &&
-            chmod -R 777 /app/static || true &&
-
-            echo 'Cleaning old static files...' &&
-            rm -rf /app/static/* &&
-            mkdir -p /app/static &&
-            python manage.py collectstatic --noinput --clear --verbosity 0 &&
-
-            echo 'Resetting ownership for app user...' &&
-            chown -R 1000:1000 /app/static"
-
+            rm -rf /app/static/*
+            mkdir -p /app/static
+            chown -R 1000:1000 /app/static
+            chmod -R 777 /app/static"
+            
+            # 2. Сбор статических файлов под пользователем приложения
+            docker compose run --rm --user 1000:1000 app python manage.py collectstatic --noinput --clear --verbosity 0
+            
             echo "===> Restarting all services"
             docker compose up -d app nginx celery celery-beat
-
+            
             echo "===> Cleaning unused Docker images"
             docker image prune -f
-
+            
             echo "===> Verifying deployment..."
             sleep 5
             VERIFICATION_COMMAND="docker compose exec -T nginx sh -c \"apk add --no-cache curl >/dev/null 2>&1 || true && curl -s -o /dev/null -w '%{http_code}' http://localhost\" | grep -q '200'"
             if eval $VERIFICATION_COMMAND; then
-              echo '✅ Deployment verified successfully'
+            
+            echo '✅ Deployment verified successfully'
             else
-              echo '❌ Deployment verification failed!'
-              docker compose logs app -n 50
-              exit 1
+            echo '❌ Deployment verification failed!'
+            docker compose logs app -n 50
+            exit 1
             fi
-
