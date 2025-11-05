@@ -1,5 +1,4 @@
 from rest_framework.serializers import ValidationError
-from .models import Habit
 
 
 class HabitValidator:

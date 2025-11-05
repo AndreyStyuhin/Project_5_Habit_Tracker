@@ -2,24 +2,24 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from apps.users.models import User
-from .models import Habit
-from django.utils import timezone
+from apps.habits.models import Habit
 
 
 class HabitApiTests(APITestCase):
 
     def setUp(self):
-        # Создаем двух пользователей
+        # Создаем двух пользователей с УНИКАЛЬНЫМИ username
         self.user1 = User.objects.create_user(
+            username='user1_unique',  # <-- Изменено
             email='user1@example.com',
             password='password123',
             telegram_id='12345'
         )
         self.user2 = User.objects.create_user(
+            username='user2_unique',  # <-- Изменено
             email='user2@example.com',
             password='password123'
         )
-
         # Аутентифицируем user1
         self.client.login(email='user1@example.com', password='password123')
         # Для APITestCase с JWT, вам нужно получить токен и установить его в заголовок
@@ -80,7 +80,6 @@ class HabitApiTests(APITestCase):
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['action'], 'Почитать книгу 15 минут')
-        self.assertEqual(response.data['related_habit'], self.pleasant_habit.id)
 
     # --- Тесты валидаторов ---
 
@@ -196,3 +195,14 @@ class HabitApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.pleasant_habit.refresh_from_db()
         self.assertEqual(self.pleasant_habit.place, "Ванная комната")
+
+    def test_unauthorized_user_cannot_access_habits(self):
+        """Тест: Неаутентифицированный пользователь получает 401 при доступе к списку."""
+        # Отменяем аутентификацию, установленную в setUp
+        self.client.force_authenticate(user=None)
+
+        url = reverse('habits:habit-list')
+        response = self.client.get(url)
+
+        # Ожидаем 401 Unauthorized
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

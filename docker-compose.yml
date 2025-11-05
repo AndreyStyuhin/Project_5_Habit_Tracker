@@ -1,0 +1,113 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: habit_db
+    restart: always
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - habit_net
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+
+  redis:
+    image: redis:7-alpine
+    container_name: habit_redis
+    restart: always
+    networks:
+      - habit_net
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+
+  app:
+    image: 212.22.70.98:5000/habit_tracker/app:latest
+    container_name: habit_app
+    restart: always
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - static_volume:/app/static
+      - media_volume:/app/media   # Монтирование тома медиа
+    expose:
+      - "8000"
+    command: >
+      sh -c "gunicorn habit_tracker.wsgi:application --bind 0.0.0.0:8000 --workers=1 --threads=2 --timeout 90"
+    networks:
+      - habit_net
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+  nginx:
+    image: 212.22.70.98:5000/habit_tracker/nginx:latest
+    container_name: habit_nginx
+    restart: always
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+    volumes:
+      - static_volume:/static
+      - static_volume:/app/static # Монтирование тома статики
+      - media_volume:/app/media   # Монтирование тома медиа
+    networks:
+      - habit_net
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+
+  celery:
+    image: 212.22.70.98:5000/habit_tracker/app:latest
+    container_name: habit_celery
+    restart: always
+    env_file: .env
+    command: >
+      sh -c "celery -A habit_tracker worker -l info --concurrency=1 --max-tasks-per-child=50"
+    depends_on:
+      - app
+      - redis
+      - db
+    networks:
+      - habit_net
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  celery-beat:
+    image: 212.22.70.98:5000/habit_tracker/app:latest
+    container_name: habit_beat
+    restart: always
+    env_file: .env
+    command: >
+      sh -c "celery -A habit_tracker beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+    depends_on:
+      - app
+      - redis
+      - db
+    networks:
+      - habit_net
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
+
+networks:
+  habit_net:
+    driver: bridge

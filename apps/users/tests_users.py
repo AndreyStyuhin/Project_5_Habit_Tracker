@@ -23,8 +23,8 @@ class UserAuthTests(APITestCase):
 
     def test_user_login(self):
         """Тест получения JWT токена (логин)."""
-        # Сначала регистрируем пользователя
-        user = User.objects.create_user(
+        User.objects.create_user(
+            username='login_user',
             email="login@example.com",
             password="loginpass123"
         )
